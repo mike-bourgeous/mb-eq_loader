@@ -1,7 +1,7 @@
 module MB
   module EQLoader
-    # Represents a single parametric EQ within a Soundweb London DSP, providing
-    # methods to set the EQ type, frequency, etc. for any EQ band.
+    # Represents a single parametric EQ object within a Soundweb London DSP,
+    # providing methods to set the EQ type, frequency, etc. for any EQ band.
     class PEQ
       # State variable ID offsets
       SVID = {
@@ -31,33 +31,38 @@ module MB
       }.freeze
 
       # Creates a PEQ object with the given 16-bit +:node+ ID and 24-bit
-      # +:object+ ID.
-      #
-      # TODO: socket/connection??
-      def initialize(node:, object:)
+      # +:object+ ID.  The +:io+ may be an object that responds to :write,
+      # allowing this class to send messages over TCP or Serial.
+      def initialize(node:, object:, io: nil)
         @node = node
         @vd = 0x03
         @object = object
+        @io = io
       end
 
+      # Sets the global bypass toggle for the entire PEQ.
       def set_bypass_all(value)
-        # TODO: send the message instead of returning it
         set(band: nil, param: :bypass_all, value: value)
       end
 
+      # Sets the bypass toggle (true for bypass, false for enable) for the
+      # given +band+ (1-indexed).
       def set_bypass(band, value)
         set(band:, param: :bypass, value:)
       end
 
+      # Sets the frequency in Hz for the given band (1-indexed).
       def set_frequency(band, freq_hz)
         set(band:, param: :frequency, value: freq_hz)
       end
 
+      # Sets the gain in dB for the given band (1-indexed).
       def set_gain(band, gain_db)
         set(band:, param: :boost, value: gain_db)
       end
       alias set_boost set_gain
 
+      # Sets the bandwidth in octaves (0.01..4) for the given band (1-indexed).
       def set_width(band, width_oct)
         set(band:, param: :width, value: width_oct)
       end
@@ -82,24 +87,31 @@ module MB
         set(band:, param: :slope, value: slope_id)
       end
 
+      # Sets all of the parameters on an EQ band.
       def set_band(band:, bypass:, frequency:, gain:, width:, type:, slope:)
-        # TODO: send the messages instead of returning them
         [
           set_bypass(band, bypass),
           set_type(band, type),
           set_frequency(band, frequency),
           set_gain(band, gain),
           set_width(band, width),
-          set_type(band, type),
           set_slope(band, slope),
         ]
       end
 
       private
 
+      # Sends a message for the given band and parameter to the IO object given
+      # to the constructor.
+      def set(band:, param:, value:)
+        create_set(band:, param:, value:).tap { |msg|
+          @io&.write(msg)
+        }
+      end
+
       # Generates a wire-ready message String to set the given parameter to the
       # given value on the given band (1-indexed).
-      def set(band:, param:, value:)
+      def create_set(band:, param:, value:)
         case param
         when :bypass_all
           DIProtocol.set_sv(node: @node, vd: @vd, object: @object, sv: SVID[param], value: ValueTypes.binary(value))
