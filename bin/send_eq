@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+# Loads EQ data from REW into a Soundweb London PEQ
+#
+# When given the name of a formatted EQ settings text file exported from RoomEQ
+# Wizard, this script sends the EQ settings to a PEQ on a Soundweb London
+# device given the IP address, HiQnet node ID, and object ID.
+#
+# EQ settings will be loaded starting at band 1 unless the first_band parameter
+# is provided, allowing multiple iterations of REW optimization to be added to
+# the same PEQ.
+#
+# Usage:
+#     $0 eq_file.txt ip_addr node_id obj_id [first_band]
+#
+# Example:
+#     $0 lfe.txt 10.0.0.123 0x0123 0x104
+
+require 'bundler/setup'
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
+
+require 'mb-eq_loader'
+
+require 'mb-util'
+
+if ARGV.length < 4 || ARGV.length > 5
+  MB::U.print_header_help
+  exit 1
+end
+
+module DebugOutput
+  module_function
+
+  def write(data)
+    puts data.bytes.map { |b| '0x%02x' % b }.join(' ')
+  end
+end
+
+filename = ARGV[0]
+ip = ARGV[1]
+node = Integer(ARGV[2])
+object = Integer(ARGV[3])
+first_band = Integer(ARGV[4] || 1)
+
+# TODO socket = TCPSocket.new(ip
+
+peq = MB::EQLoader::PEQ.new(node: node, object: object, io: DebugOutput)
+
+eqdata = MB::EQLoader::EQFile.new(filename)
+eqdata.apply(peq, first_band:)
