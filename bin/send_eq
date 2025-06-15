@@ -16,8 +16,10 @@
 #     $0 lfe.txt 10.0.0.123 0x0123 0x104
 
 require 'bundler/setup'
-$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
+require 'socket'
+
+$LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 require 'mb-eq_loader'
 
 require 'mb-util'
@@ -31,7 +33,10 @@ module DebugOutput
   module_function
 
   def write(data)
-    puts data.bytes.map { |b| '0x%02x' % b }.join(' ')
+    puts "\e[1m#{caller_locations(1)[0].label}:\e[0m #{data.bytes.map { |b| '0x%02x' % b }.join(' ')}"
+  end
+
+  def close
   end
 end
 
@@ -41,9 +46,20 @@ node = Integer(ARGV[2])
 object = Integer(ARGV[3])
 first_band = Integer(ARGV[4] || 1)
 
-# TODO socket = TCPSocket.new(ip
+MB::U.headline "Connecting to #{'node 0x%04x' % node}, #{'obj 0x%04x' % object} at IP #{ip}"
 
-peq = MB::EQLoader::PEQ.new(node: node, object: object, io: DebugOutput)
+# TODO socket = TCPSocket.new(ip, 1023)
+# XXX socket = TCPSocket.new('localhost', 12345) # nc -l 12345 | hexdump -C
+socket = DebugOutput
+
+peq = MB::EQLoader::PEQ.new(node: node, object: object, io: socket)
 
 eqdata = MB::EQLoader::EQFile.new(filename)
+
+MB::U.headline "Loaded #{filename}"
+puts MB::U.highlight({info: eqdata.info, bands: eqdata.bands})
+
+MB::U.headline "Sending #{eqdata.bands.length} bands starting at #{first_band}"
 eqdata.apply(peq, first_band:)
+
+socket.close
