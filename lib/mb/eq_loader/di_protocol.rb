@@ -4,7 +4,7 @@
 #
 # The Rubyisms used here are super inefficient compared to a straightforward
 # C implementation, but they make the code much simpler.
-module DIProtocol
+module MB::EQLoader::DIProtocol
   module_function
 
   # Valid message IDs

@@ -1,6 +1,6 @@
-RSpec.describe(DIProtocol) do
+RSpec.describe(MB::EQLoader::DIProtocol) do
   it 'matches the sample from the help' do
-    expect(DIProtocol.set_sv(node: 0, vd: 0, object: 0, sv: 4, value: 0).bytes).to eq(
+    expect(described_class.set_sv(node: 0, vd: 0, object: 0, sv: 4, value: 0).bytes).to eq(
       [0x02, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x8c, 0x03]
     )
   end
