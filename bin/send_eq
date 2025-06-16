@@ -48,9 +48,12 @@ first_band = Integer(ARGV[4] || 1)
 
 MB::U.headline "Connecting to #{'node 0x%04x' % node}, #{'obj 0x%04x' % object} at IP #{ip}"
 
-# TODO socket = TCPSocket.new(ip, 1023)
-# XXX socket = TCPSocket.new('localhost', 12345) # nc -l 12345 | hexdump -C
-socket = DebugOutput
+if ip == 'DEBUG'
+  socket = DebugOutput
+else
+  # XXX socket = TCPSocket.new('localhost', 12345) # nc -l 12345 | hexdump -C
+  socket = TCPSocket.new(ip, 1023)
+end
 
 peq = MB::EQLoader::PEQ.new(node: node, object: object, io: socket)
 
