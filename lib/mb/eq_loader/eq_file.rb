@@ -5,6 +5,8 @@ require 'csv'
 #
 # Configure REW to export data for a Generic Configurable PEQ, then export
 # settings as a formatted text file.
+#
+# See bin/send_eq for example usage.
 class MB::EQLoader::EQFile
   TYPE_MAP = {
     'PK' => :peak,
@@ -12,6 +14,7 @@ class MB::EQLoader::EQFile
 
   attr_reader :info, :bands
 
+  # Creates an EQ file reader and loads EQ data from the given filename.
   def initialize(filename)
     @info = []
     @bands = []
@@ -19,9 +22,10 @@ class MB::EQLoader::EQFile
     File.open(filename, 'rt') do |f|
       l = nil
 
-      # Look for header line
+      # Look for header line in machine-formatted file and/or detect
+      # human-formatted file
       loop do
-        l = f.readline.strip
+        l = f.readline&.strip
 
         # TODO: support this file type
         # Filter  1: ON  PK       Fc   179.0 Hz  Gain   7.30 dB  BW oct   0.23
@@ -32,27 +36,55 @@ class MB::EQLoader::EQFile
         # Filter  6: ON  PK       Fc    3563 Hz  Gain -12.00 dB  BW oct   0.33
         # Filter  7: ON  PK       Fc   11908 Hz  Gain -11.30 dB  BW oct   1.39
         # Filter  8: ON  PK       Fc   17694 Hz  Gain  12.00 dB  BW oct   0.94
-        raise "Plain text file (i.e. not 'formatted text file') not yet supported" if l.include?('Filter Settings file')
-
-        break if l.start_with?('Number Enabled') || l.nil?
+        break if l.nil? || l.start_with?('Number Enabled') || l.start_with?('Filter Settings file')
 
         @info << l.strip
       end
 
       raise "Did not find header row (read #{@info})" if l.nil?
 
-      data = f.readlines.map(&:strip).join("\n")
+      if l.start_with?('Number Enabled')
+        # Machine-formatted file
+        data = f.readlines.map(&:strip).join("\n")
 
-      csv = CSV.new(data, col_sep: ' ', headers: l)
-      csv.read.each do |row|
-        @bands << {
-          bypass: row['Enabled'] != 'True',
-          type: TYPE_MAP[row['Type']],
-          frequency: row['Frequency(Hz)'].to_f,
-          gain: row['Gain(dB)'].to_f,
-          width: row['BW_oct'].to_f,
-          slope: 0, # TODO: support shelving filters if added to REW generic EQ
-        }
+        csv = CSV.new(data, col_sep: ' ', headers: l)
+        csv.read.each do |row|
+          @bands << {
+            bypass: row['Enabled'] != 'True',
+            type: TYPE_MAP[row['Type']],
+            frequency: row['Frequency(Hz)'].to_f,
+            gain: row['Gain(dB)'].to_f,
+            width: row['BW_oct'].to_f,
+            slope: 0, # TODO: support shelving filters if added to REW generic EQ
+          }
+        end
+
+      elsif l.start_with?('Filter Settings')
+        # Human-readable file
+
+        # Read the rest of the header
+        until f.eof? do
+          l = f.readline&.strip
+
+          data = l.scan(/Filter\s+(?<index>\d+):\s+(?<on>[OFN]+)\s+(?<type>[A-Za-z]+)\s+Fc\s+(?<frequency>\d+(\.\d+)?)\s+Hz\s+Gain\s+(?<gain>-?\d+(\.\d+)?)\s+dB\s+BW oct\s+(?<width>\d+(\.\d+)?)/)
+          if data&.any?
+            data.each do |row|
+              @bands << {
+                bypass: row[1] != 'ON',
+                type: TYPE_MAP[row[2]],
+                frequency: row[3].to_f,
+                gain: row[4].to_f,
+                width: row[5].to_f,
+                slope: 0, # TODO: support shelf filter if REW writes it
+              }
+            end
+          else
+            @info << l.strip
+          end
+        end
+
+      else
+        raise "Unsupported file format in #{filename.inspect}"
       end
     end
   end
