@@ -22,7 +22,20 @@ class MB::EQLoader::EQFile
       # Look for header line
       loop do
         l = f.readline.strip
+
+        # TODO: support this file type
+        # Filter  1: ON  PK       Fc   179.0 Hz  Gain   7.30 dB  BW oct   0.23
+        # Filter  2: ON  PK       Fc   396.0 Hz  Gain  -5.00 dB  BW oct   0.83
+        # Filter  3: ON  PK       Fc   676.0 Hz  Gain -10.60 dB  BW oct   0.29
+        # Filter  4: ON  PK       Fc    1366 Hz  Gain  -8.50 dB  BW oct   1.08
+        # Filter  5: ON  PK       Fc    2096 Hz  Gain  -9.70 dB  BW oct   0.53
+        # Filter  6: ON  PK       Fc    3563 Hz  Gain -12.00 dB  BW oct   0.33
+        # Filter  7: ON  PK       Fc   11908 Hz  Gain -11.30 dB  BW oct   1.39
+        # Filter  8: ON  PK       Fc   17694 Hz  Gain  12.00 dB  BW oct   0.94
+        raise "Plain text file (i.e. not 'formatted text file') not yet supported" if l.include?('Filter Settings file')
+
         break if l.start_with?('Number Enabled') || l.nil?
+
         @info << l.strip
       end
 
