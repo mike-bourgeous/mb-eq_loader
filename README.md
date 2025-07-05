@@ -27,6 +27,12 @@ These instructions assume you're already very familiar with Soundweb London
 devices and parametric EQ, and know how to get the node and object ID of a PEQ
 object.
 
+The `bin/send_eq` script also has built-in help:
+
+```bash
+bin/send_eq --help
+```
+
 ### Configure REW
 
 Set up REW to use a *Generic*/*Configurable PEQ* equalizer, then configure the
